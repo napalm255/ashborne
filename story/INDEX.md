@@ -46,6 +46,9 @@
 - **[crafting_and_gear.md](systems/crafting_and_gear.md)** — Crafting system, recipes, Tier 1–3 gear, components
 - **[ci_cd_testing.md](systems/ci_cd_testing.md)** — CI/CD pipelines, automated testing, static analysis, release management
 - **[development_setup.md](systems/development_setup.md)** — UE5.8 environment, tools, quick-start checklist
+- **[ue5_project_bootstrap.md](systems/ue5_project_bootstrap.md)** — C++ class names, subsystems, maps, naming conventions, UE5.8 best practices
+- **[main_menu_spec.md](systems/main_menu_spec.md)** — Main menu design, CommonUI architecture, atmospheric effects
+- **[development_phases.md](systems/development_phases.md)** — Implementation roadmap (14 phases), living checklist, scope per phase
 
 ---
 
