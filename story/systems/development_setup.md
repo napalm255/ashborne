@@ -6,18 +6,50 @@ Practical steps for getting the full development environment running from scratc
 
 ## 1. Unreal Engine 5.8
 
-Download and install via Epic Games Launcher inside the `ue5dev` container:
+On Linux (including Bluefin Atomic Desktop), UE5 is installed by **building from source**. The Epic Games Launcher has limited and unreliable Linux support; building from source is the standard approach and produces the same result.
 
-- Inside `toolbox enter ue5dev`
-- Visit epicgames.com/download
-- Download Epic Games Launcher (Linux version)
-- Sign in with Epic account (create one if needed)
-- Navigate to Unreal Engine tab
-- Select Version 5.8.x (latest stable 5.8 release)
-- Click "Install"
-- Select installation location (recommend SSD, ~60–90 GB)
-- Select target platform: **Linux only** (this project compiles for Linux exclusively)
-- Install completes in approximately 20–40 minutes depending on internet and disk speed
+### 1a. Link Epic account to GitHub (one-time)
+
+1. Go to [unrealengine.com](https://www.unrealengine.com) → sign in → account settings
+2. Link your GitHub account under "Connected Accounts"
+3. You will receive an invitation to the private `EpicGames/UnrealEngine` GitHub repository
+4. Accept the invitation
+
+### 1b. Build UE5.8 inside the `ue5dev` container
+
+```bash
+# Enter development container
+toolbox enter ue5dev
+
+# Install git-lfs (required for UE5 source)
+sudo dnf install git-lfs
+git lfs install
+
+# Clone UE5.8 source (~15 GB download)
+git clone --branch 5.8 --single-branch https://github.com/EpicGames/UnrealEngine.git ~/UnrealEngine
+
+cd ~/UnrealEngine
+
+# Download remaining dependencies (~30–40 GB additional)
+./Setup.sh
+
+# Generate project files
+./GenerateProjectFiles.sh
+
+# Build the editor (takes 1–2 hours on first build)
+make
+```
+
+Total disk footprint: ~60–90 GB on SSD. Subsequent incremental builds are much faster.
+
+### 1c. Verify
+
+```bash
+# Launch the editor to confirm the build succeeded
+~/UnrealEngine/Engine/Binaries/Linux/UnrealEditor
+```
+
+Set `UE5_PATH=~/UnrealEngine` in your environment or shell profile for convenience — the commands in this guide and in CLAUDE.md reference it.
 
 The Unreal Engine 5.8 binary is the authoritative engine for this project. Do not use engine versions before 5.8 or any other version.
 
@@ -439,7 +471,8 @@ After setup is complete inside the `ue5dev` container:
 ### Core Tools
 - [ ] `toolbox enter ue5dev` successfully enters the development container
 - [ ] Inside container: `clang --version` and `clang++ --version` report 17+
-- [ ] UE5.8 Editor launches: `./UnrealEditor AshborneProject.uproject`
+- [ ] UE5.8 built from source: `~/UnrealEngine/Engine/Binaries/Linux/UnrealEditor` launches
+- [ ] UE5.8 Editor opens project: `~/UnrealEngine/Engine/Binaries/Linux/UnrealEditor AshborneProject.uproject`
 
 ### Asset Pipeline
 - [ ] Blender opens and exports FBX (installed on Bluefin host or in container)
