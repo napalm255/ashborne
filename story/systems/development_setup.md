@@ -80,16 +80,34 @@ Models created in Blender export to FBX or use the bridge plugin for direct impo
 
 ---
 
-## 4. Substance Painter (PBR Texturing)
+## 4. PBR Material Creation (Free Tools)
 
-Download from substance3d.com:
+### Primary: Blender 4.x Texture Painting + Baking
 
-- Create Substance account (free tier available with basic features)
-- Download Substance 3D Painter
-- Install per platform
-- (Optional) Subscribe to Substance Plus for additional materials and plugins
+Blender's built-in texture paint tools and bake engine generate PBR materials for free:
 
-Textures created in Substance Painter export as PBR material packages (albedo, normal, roughness, metallic, AO) for import into UE5 materials.
+- Open FBX model in Blender (UV-unwrapped)
+- Shader Editor: Add Image Texture node with new image (e.g., "Albedo", "Normal", "Roughness")
+- Texture Paint mode: Paint directly on mesh or use procedural noise
+- Bake PBR maps: In Cycles, set up geometry nodes or material output with bake nodes
+- Bake albedo, normal, roughness, metallic, AO into separate textures
+- Export as EXR or PNG (16-bit recommended for quality)
+- Import into UE5 as Texture2D assets
+
+**Resources**:
+- Blender Shader to Texture baking: https://docs.blender.org/manual/en/latest/render/cycles/baking/index.html
+- Procedural material generation with node groups
+
+### Secondary: Material Maker (Procedural PBR Generation)
+
+Material Maker (free, open source, GPLv3) generates procedural PBR materials without manual painting:
+
+- Download from https://github.com/RodZill4/material-maker
+- Open Material Maker, use node-based editor to build materials (mix textures, add noise, warping, etc.)
+- Export PBR map set: albedo, normal, roughness, metallic, AO
+- Import into UE5 as Texture2D assets and apply to materials
+
+**Use cases**: Repeating textures (brick, stone, concrete, wood), procedural surfaces (rust, wear, weathering)
 
 ---
 
@@ -108,7 +126,67 @@ Megascans is free with your UE5 license. Use extensively for Frederick's histori
 
 ---
 
-## 6. Stable Diffusion (Concept Art & Reference)
+## 6. Static Analysis & Linting Tools
+
+### clang-format (Code Style)
+
+Enforces consistent C++ formatting across the project.
+
+```bash
+# Inside ue5dev container
+sudo dnf install clang-tools-extra
+
+# Format a single file in place
+clang-format -i Source/AshborneProject/Core/Player/MaddoxCharacter.cpp
+
+# Check all files without modifying
+clang-format --dry-run Source/AshborneProject/**/*.cpp
+
+# Generate diff to see changes
+clang-format Source/AshborneProject/Core/Player/MaddoxCharacter.cpp > /tmp/formatted.cpp
+diff -u Source/AshborneProject/Core/Player/MaddoxCharacter.cpp /tmp/formatted.cpp
+```
+
+Configuration file (`.clang-format` in project root) is pre-configured for UE5 style (4-space indentation, Allman braces, 120-column limit).
+
+### clang-tidy (Bug Detection)
+
+Identifies bugs, unsafe patterns, and UE5-specific anti-patterns.
+
+```bash
+# Inside ue5dev container
+sudo dnf install clang-tools-extra
+
+# Analyze a single file
+clang-tidy Source/AshborneProject/Core/Player/MaddoxCharacter.cpp
+
+# Analyze all files in directory (may take several minutes)
+clang-tidy Source/AshborneProject/**/*.cpp -- -I$UE5_PATH/Engine/Source/Runtime/Core/Public
+
+# Save output to file for review
+clang-tidy Source/AshborneProject/**/*.cpp > /tmp/tidy-report.txt 2>&1
+```
+
+Configuration file (`.clang-tidy` in project root) is pre-configured with recommended checks for UE5.
+
+### cppcheck (Supplemental Static Analysis)
+
+Catches memory leaks, uninitialized variables, buffer overflows, and other classic C++ bugs.
+
+```bash
+# Inside ue5dev container
+sudo dnf install cppcheck
+
+# Analyze project
+cppcheck --enable=all --suppress=missingIncludeSystem Source/AshborneProject/
+
+# Generate XML report
+cppcheck --enable=all --xml --output-file=/tmp/cppcheck-report.xml Source/AshborneProject/
+```
+
+---
+
+## 7. Stable Diffusion (Concept Art & Reference)
 
 Setup for local generation (AUTOMATIC1111 webui):
 
@@ -132,11 +210,82 @@ git clone https://github.com/Mikubill/sd-webui-controlnet extensions/sd-webui-co
 # Access at http://127.0.0.1:7860
 ```
 
-Stable Diffusion is used for mood boards, character concept art, and environment reference — not for final assets. Output images inform art direction; actual assets are created in Blender and textured in Substance Painter.
+Stable Diffusion is used for mood boards, character concept art, and environment reference — not for final assets. Output images inform art direction; actual assets are created in Blender and textured with Blender's texture paint tools or Material Maker for procedural materials.
 
 ---
 
-## 7. Audio Generation Tools
+## 8. Automation Testing Quick-Start
+
+UE5 has a built-in Automation Framework for writing unit, functional, and smoke tests. Tests are written in C++ and run via command line in CI/CD and in-editor.
+
+### Running Tests in-Editor
+
+1. Open AshborneProject in UE5 editor
+2. Window → Automation
+3. Automation window lists all tests in the project
+4. Click test name → Click "Start Tests" button
+
+### Running Tests Headless (CI/CD)
+
+```bash
+# Inside ue5dev container, run all Ashborne tests
+./UnrealEditor AshborneProject.uproject \
+  -ExecCmds="Automation RunTests Ashborne" \
+  -nullrhi \
+  -unattended \
+  -nopause
+
+# Run specific test suite
+./UnrealEditor AshborneProject.uproject \
+  -ExecCmds="Automation RunTests Ashborne.Crafting" \
+  -nullrhi \
+  -unattended \
+  -nopause
+
+# List all available tests
+./UnrealEditor AshborneProject.uproject \
+  -ExecCmds="Automation List" \
+  -nullrhi \
+  -unattended \
+  -nopause
+```
+
+### Writing a Unit Test
+
+Tests live in `Source/AshborneProject/Tests/`. Example:
+
+```cpp
+// Source/AshborneProject/Tests/CraftingTests.cpp
+#include "Misc/AutomationTest.h"
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FCraftingRecipeTest,
+    "Ashborne.Crafting.RecipeValidation",
+    EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter
+)
+
+bool FCraftingRecipeTest::RunTest(const FString& Parameters)
+{
+    // Arrange: Set up test data
+    TArray<FComponentRequirement> Requirements;
+    Requirements.Add(FComponentRequirement{EComponentType::RFAnalyzer, 1});
+    
+    // Act: Run the function
+    FCraftingRecipe Recipe;
+    Recipe.SetRequiredComponents(Requirements);
+    bool bIsValid = Recipe.Validate();
+    
+    // Assert: Check result
+    TestTrue("Recipe with valid components should validate", bIsValid);
+    return true;
+}
+```
+
+See `story/systems/ci_cd_testing.md` for comprehensive testing strategy and examples.
+
+---
+
+## 9. Audio Generation Tools
 
 **Music (Suno.ai):**
 - Create account at suno.ai (free tier available)
@@ -168,7 +317,7 @@ audio_write('ashborne_theme', wav[0].cpu(), model.sample_rate, strategy='loudnes
 
 ---
 
-## 8. First Project Setup
+## 10. First Project Setup
 
 **Create new project in UE5:**
 1. Inside container: `./UnrealEditor` → Unreal Engine tab (or launcher if separate)
@@ -195,7 +344,7 @@ In Player Character Blueprint or C++ class:
 
 ---
 
-## 9. Common UE5 Editor Commands (Linux/Bluefin)
+## 11. Common UE5 Editor Commands (Linux/Bluefin)
 
 All commands run inside the `toolbox enter ue5dev` container:
 
@@ -222,7 +371,7 @@ All commands run inside the `toolbox enter ue5dev` container:
 
 ---
 
-## 10. Source Control Setup
+## 12. Source Control Setup
 
 Recommended: Git LFS (Large File Storage) for binary assets on Linux.
 
@@ -255,7 +404,7 @@ Alternative: Perforce (P4) — Epic's native source control for Unreal teams. Pe
 
 ---
 
-## 11. Debugging & Performance
+## 13. Debugging & Performance
 
 **Memory profiler:**
 - Console command: `stat unit` (frame time breakdown)
@@ -269,14 +418,17 @@ Alternative: Perforce (P4) — Epic's native source control for Unreal teams. Pe
 
 ---
 
-## 12. GitHub Secrets (for CI/CD, Future)
+## 14. GitHub Secrets & CI/CD Setup
 
-When setting up automated Linux builds (GitHub Actions or similar), configure repository secrets:
+When setting up automated Linux builds with GitHub Actions, configure repository secrets:
 
-| Secret | Value |
-|--------|-------|
-| UE5_LICENSE | Automation token from epic.dev (requires Epic account) |
-| LINUX_BUILD_ARGS | Any additional Linux build flags (optional) |
+| Secret | Value | Purpose |
+|--------|-------|---------|
+| `GH_TOKEN` | GitHub personal access token (repo + releases scopes) | Create releases and upload packaged builds |
+| `UE5_PATH` | Path to UE5 installation on self-hosted runner (e.g., `/home/user/UnrealEngine/5.8`) | Build and cook pipeline reference |
+| `RUNNER_TOKEN` | GitHub Actions runner registration token | Register self-hosted runner to repo |
+
+See `story/systems/ci_cd_testing.md` for full CI/CD setup details.
 
 ---
 
@@ -284,16 +436,34 @@ When setting up automated Linux builds (GitHub Actions or similar), configure re
 
 After setup is complete inside the `ue5dev` container:
 
+### Core Tools
 - [ ] `toolbox enter ue5dev` successfully enters the development container
 - [ ] Inside container: `clang --version` and `clang++ --version` report 17+
 - [ ] UE5.8 Editor launches: `./UnrealEditor AshborneProject.uproject`
+
+### Asset Pipeline
 - [ ] Blender opens and exports FBX (installed on Bluefin host or in container)
-- [ ] Substance Painter opens and can export PBR materials (host or container)
+- [ ] Material Maker or Blender can generate/export PBR materials
 - [ ] Megascans Bridge integrates with UE (Materials library accessible in-editor)
 - [ ] Stable Diffusion webui runs at http://127.0.0.1:7860 (host or container)
 - [ ] ffmpeg installed (inside container): `ffmpeg -version`
+
+### Code Quality
+- [ ] clang-format installed: `which clang-format`
+- [ ] clang-tidy installed: `which clang-tidy`
+- [ ] cppcheck installed: `which cppcheck`
+- [ ] `.clang-format` and `.clang-tidy` exist in project root
+- [ ] Run `clang-format --dry-run Source/AshborneProject/**/*.cpp` — no formatting issues
+
+### Building & Testing
 - [ ] AshborneProject opens in editor with Lumen/Nanite/World Partition enabled
 - [ ] Linux build succeeds: `./Engine/Build/BatchFiles/Linux/Build.sh AshborneProject Linux Development`
+- [ ] Headless test run succeeds: `./UnrealEditor AshborneProject.uproject -ExecCmds="Automation List" -nullrhi -unattended -nopause`
+
+### CI/CD (if setting up GitHub Actions)
+- [ ] Self-hosted runner registered and online (see `ci_cd_testing.md`)
+- [ ] GitHub Secrets configured: `GH_TOKEN`, `UE5_PATH`, `RUNNER_TOKEN` (repo Settings → Secrets)
+- [ ] `.github/workflows/main.yml` present in repository
 
 You're ready to begin development on Bluefin Linux.
 

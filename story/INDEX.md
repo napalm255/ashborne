@@ -44,6 +44,7 @@
 - **[gameplay_overview.md](systems/gameplay_overview.md)** — UE5.8, isometric camera, Gabriel Knight aesthetic
 - **[dexter_mechanics.md](systems/dexter_mechanics.md)** — Companion AI, commands, sensor vest, spontaneous contributions
 - **[crafting_and_gear.md](systems/crafting_and_gear.md)** — Crafting system, recipes, Tier 1–3 gear, components
+- **[ci_cd_testing.md](systems/ci_cd_testing.md)** — CI/CD pipelines, automated testing, static analysis, release management
 - **[development_setup.md](systems/development_setup.md)** — UE5.8 environment, tools, quick-start checklist
 
 ---
@@ -84,6 +85,7 @@ story/
     ├── gameplay_overview.md
     ├── dexter_mechanics.md
     ├── crafting_and_gear.md
+    ├── ci_cd_testing.md
     └── development_setup.md
 ```
 
@@ -103,6 +105,7 @@ story/
 
 ### For Programmers
 - Gameplay systems: [gameplay_overview.md](systems/gameplay_overview.md), [dexter_mechanics.md](systems/dexter_mechanics.md), [crafting_and_gear.md](systems/crafting_and_gear.md)
+- Testing & CI/CD: [ci_cd_testing.md](systems/ci_cd_testing.md) — automated testing, linting, GitHub Actions workflows
 - Dev setup: [development_setup.md](systems/development_setup.md)
 - Architecture: [gameplay_overview.md](systems/gameplay_overview.md) — UE5.8 features, data structures
 
@@ -144,7 +147,7 @@ story/
 | Story beats | `acts/` | Act 1 overview, full story, walkthrough |
 | Character profiles | `characters/` | Maddox, Wren, Dexter, all NPCs |
 | World building | `world/` | Locations, zones, history, atmosphere |
-| Gameplay systems | `systems/` | Crafting, Dexter AI, controls, UE5.8 setup |
+| Gameplay systems | `systems/` | Crafting, Dexter AI, controls, testing, CI/CD, UE5.8 setup |
 | Three-act structure | `acts/synopsis.md` | Logline, arcs, themes |
 
 ---

@@ -31,8 +31,7 @@ toolbox enter ue5dev
 **Inside the container:**
 - **Unreal Engine 5.8** — Download via Epic Games Launcher; 60–90 GB install
 - **clang/LLVM** — C++ compilation on Linux (installed via dnf inside container)
-- **Blender 4.x** — 3D asset creation; exports to FBX for UE5
-- **Substance Painter** — PBR material creation; exports to UE5 materials
+- **Blender 4.x** — 3D asset creation and PBR material texturing; exports to FBX for UE5
 - **Quixel/Megascans** — Material library (free with UE license); historic architecture textures
 - **Stable Diffusion (AUTOMATIC1111)** — Concept art and mood boards (not final assets)
 - **Suno.ai or AudioCraft** — Music generation
@@ -69,6 +68,21 @@ See `story/INDEX.md` for full navigation. All design files organized by type:
 - `development_setup.md` — UE5.8 environment setup
 
 **Note**: All design documents assume UE5.8 implementation (C++ + Blueprints). Isometric 3D with fixed camera at ~45° pitch.
+
+---
+
+## Toolchain & Development Standards
+
+**All tools must be 100% free** — no trials, subscriptions, or proprietary licenses. Free software includes open source (GPLv3, MIT, Apache 2.0) and free-tier community products.
+
+**Free tool choices**:
+- **Blender 4.x** (texture painting, baking, FBX export) — replaces Substance Painter
+- **Material Maker** (procedural PBR generation) — open source alternative
+- **Unreal Header Tool** (UHT) — built into UE5, validates reflection system
+- **clang-format**, **clang-tidy**, **cppcheck** — C++ linting and static analysis
+- **UE5 Automation Framework** — built-in, free testing system
+- **GitHub Actions** — free CI/CD (self-hosted runner required due to disk space)
+- **unreal-mcp** — open source Python MCP server for Claude Code integration
 
 ---
 
@@ -125,9 +139,18 @@ Key mechanics:
 
 ### Asset Pipeline (Pre-production)
 - **3D Models**: Generated via Stable Diffusion → rembg background removal → Blender refinement → FBX export → UE5 import
-- **Materials**: Substance Painter or Megascans (PBR materials) → UE5 material instances → applied to assets
+- **Materials**: Blender texture baking + Material Maker (free alternatives) → PBR maps (albedo, normal, roughness, metallic, AO) → UE5 material instances → applied to assets
 - **Audio**: Music via Suno.ai or AudioCraft; SFX from freesound.org (CC0 filtered); all converted to WAV → UE5 MetaSounds
 - **Storage**: Content/ directory in UE5 project (.uasset binary format); expect 50+ GB once all assets are generated and imported
+
+### CI/CD & Distribution
+- **Testing**: UE5 Automation Framework for unit, functional, and smoke tests. Tests run on every commit via GitHub Actions.
+- **Linting**: clang-format, clang-tidy, cppcheck run automatically on commits and PRs.
+- **Build Pipeline**: GitHub Actions with self-hosted runner (UE5 is 60–90 GB). Stages: lint → build (Linux Dev) → test → package (Linux Shipping).
+- **Releases**: Tagged commits (v*) trigger full package → publish pipeline. Built artifacts uploaded to GitHub Releases as `.tar.gz` (Linux), `.zip` (Windows), `.apk` (Android).
+- **Platforms**: Linux primary (development and shipping), Windows secondary (future), Android optional (if easy).
+
+See `story/systems/ci_cd_testing.md` for complete CI/CD, testing, and distribution strategy.
 
 ### UE5.8-Specific Patterns
 - **C++ Core**: Game logic in C++ classes; exposed properties/functions to Blueprint for iteration
@@ -204,7 +227,7 @@ AshborneProject/
 │   │   └── [more locations]           # Interior and exterior zones per design
 │   ├── Characters/
 │   │   ├── Meshes/                    # Maddox, Dexter, NPC models (FBX from Blender)
-│   │   └── Materials/                 # PBR materials (from Substance Painter, Megascans)
+│   │   └── Materials/                 # PBR materials (from Blender, Material Maker, Megascans)
 │   ├── Audio/
 │   │   ├── Music/                     # Generated tracks (WAV, converted to MetaSound)
 │   │   └── SFX/                       # Sound effects (WAV, 44100Hz, 16-bit)
@@ -221,6 +244,91 @@ AshborneProject/
 ```
 
 This is a **suggested structure** — adjust as implementation progresses. All art assets (3D models, textures, audio) are stored in `Content/` as .uasset files.
+
+---
+
+## Testing
+
+All new code should have automated tests where reasonable. Tests use **UE5 Automation Framework** (built-in, free).
+
+### Test Types & Locations
+
+| Type | Location | Command | When |
+|------|----------|---------|------|
+| Unit tests | `Source/AshborneProject/Tests/` | Run in-editor via Automation window | Every commit (via CI) |
+| Functional tests | `Source/AshborneProject/Tests/` + test maps in `Maps/TEST_*.umap` | Headless: `Automation RunTests Ashborne.Functional` | Every commit (via CI) |
+| Smoke tests | CI pipeline (Build.sh) | `Build.sh AshborneProject Linux Development` | Every commit |
+
+### Test Naming Convention
+
+Tests follow Conventional Commits scoping: `Ashborne.<System>.<TestName>`
+
+**Examples**:
+- `Ashborne.Crafting.RecipeValidation_MissingComponentFails`
+- `Ashborne.Inventory.AddItem_StacksCorrectly`
+- `Ashborne.Dexter.CommandDispatch_SearchMovesDexter`
+- `Ashborne.Phenomenon.IntensityClamp_ClampsToZeroOne`
+
+### Running Tests
+
+**In-editor**: Window → Automation → Select test(s) → Start Tests
+
+**Headless (CI)**: 
+```bash
+./UnrealEditor AshborneProject.uproject \
+  -ExecCmds="Automation RunTests Ashborne" \
+  -nullrhi -unattended -nopause
+```
+
+**List available tests**:
+```bash
+./UnrealEditor AshborneProject.uproject \
+  -ExecCmds="Automation List" \
+  -nullrhi -unattended -nopause
+```
+
+See `story/systems/ci_cd_testing.md` for comprehensive testing strategy.
+
+---
+
+## Code Quality & Commit Standards
+
+### Commit Message Convention (Conventional Commits)
+
+Format: `<type>(<scope>): <subject>`
+
+**Types**: `feat`, `fix`, `docs`, `test`, `ci`, `chore`, `refactor`, `perf`, `style`
+
+**Scopes**: `crafting`, `dexter`, `phenomenon`, `ui`, `tools`, `ci`, `docs`, `assets`
+
+**Examples**:
+```
+feat(crafting): unlock Tier 3 recipes after Ironveil discovery
+fix(dexter): fix command dispatch not respecting cooldown
+test(phenomenon): validate intensity clamp to [0.0, 1.0]
+ci: add Android build workflow
+docs: update crafting system architecture
+```
+
+See `story/systems/ci_cd_testing.md` for full specification and examples.
+
+### Code Linting
+
+All new C++ code is checked against **clang-format**, **clang-tidy**, and **cppcheck** before merge.
+
+**Manual checks** (before commit):
+```bash
+# Format check
+clang-format --dry-run Source/AshborneProject/**/*.cpp
+
+# Lint check
+clang-tidy Source/AshborneProject/**/*.cpp
+
+# Static analysis
+cppcheck --enable=all Source/AshborneProject/
+```
+
+**CI/CD**: Automatic in GitHub Actions on every push and PR.
 
 ---
 
@@ -248,6 +356,46 @@ All commands run inside the `toolbox enter ue5dev` container.
 # Run game standalone (development)
 ./Binaries/Linux/AshborneProject-Linux-Shipping -windowed -ResX=1920 -ResY=1080
 ```
+
+---
+
+## UE5 MCP (Claude Code Integration)
+
+**unreal-mcp** bridges Claude Code to the running UE5 editor for live scripting and testing.
+
+### Setup
+
+Inside `ue5dev` container:
+```bash
+pip install unreal-mcp
+```
+
+Configure in `~/.claude/settings.json`:
+```json
+{
+  "mcpServers": {
+    "unreal": {
+      "command": "python3",
+      "args": ["-m", "unreal_mcp"],
+      "env": {
+        "UE_PROJECT": "/path/to/AshborneProject.uproject"
+      }
+    }
+  }
+}
+```
+
+### Usage in Claude Code
+
+**Run tests**: `/unreal run-tests Ashborne.Crafting.*`
+
+**Validate assets**: `/unreal validate-assets DA_*`
+
+**Execute editor script**: `/unreal exec "print GetWorldActorCount()"`
+
+**Query live data**: `/unreal python` + Python script to inspect actors, assets, or game state
+
+See `story/systems/ci_cd_testing.md` for detailed examples.
 
 ---
 
